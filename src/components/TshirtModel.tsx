@@ -9,15 +9,13 @@ import state from "../store";
 export default function TShirtModel() {
   const snap = useSnapshot(state);
 
-  let gltf;
-  try {
-    gltf = useGLTF("/euler_tshirt_3mb.glb");
-  } catch (error) {
-    console.error("Error loading model:", error);
-    return null; // Prevent rendering if there's an error
-  }
-
+  const gltf = useGLTF("/euler_tshirt_3mb.glb"); // Always call hooks at the top level
   const { scene, nodes, materials: mtt } = gltf;
+
+  if (!scene) {
+    console.error("Error: Model could not be loaded.");
+    return null;
+  }
 
   console.log(nodes, mtt);
 
