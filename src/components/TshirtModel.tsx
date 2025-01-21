@@ -2,34 +2,25 @@
 
 import { useGLTF } from "@react-three/drei";
 import { useSnapshot } from "valtio";
-import { useEffect, useState } from "react";
 import * as THREE from "three";
+import { useEffect, useState } from "react";
 import state from "../store";
 
 export default function TShirtModel() {
   const snap = useSnapshot(state);
+  const { scene, nodes, materials } = useGLTF("/euler_tshirt_3mb.glb");
 
-  const gltf = useGLTF("/euler_tshirt_3mb.glb"); // Always call hooks at the top level
-  const { scene, nodes, materials: mtt } = gltf;
+  // Create a ref for materials to update
+  const [materialMap, setMaterialMap] = useState<{
+    [key: string]: THREE.Material;
+  }>({});
 
-  if (!scene) {
-    console.error("Error: Model could not be loaded.");
-    return null;
-  }
-
-  console.log(nodes, mtt);
-
-  const [materials, setMaterials] = useState<{ [key: string]: THREE.Material }>(
-    {}
-  );
-
+  // Initialize materials
   useEffect(() => {
-    if (scene) {
-      console.log("Model loaded successfully:", scene);
-    }
     const newMaterials: { [key: string]: THREE.Material } = {};
     scene.traverse((child) => {
       if (child instanceof THREE.Mesh) {
+        // Clone the material to avoid sharing between instances
         const material = child.material as THREE.MeshStandardMaterial;
         if (material) {
           newMaterials[child.name] = material.clone();
@@ -37,27 +28,37 @@ export default function TShirtModel() {
         }
       }
     });
-    setMaterials(newMaterials);
+    setMaterialMap(newMaterials);
   }, [scene]);
 
+  // Update color
   useEffect(() => {
-    Object.values(materials).forEach((material) => {
+    Object.values(materialMap).forEach((material) => {
       if (material instanceof THREE.MeshStandardMaterial) {
         material.color.set(snap.color);
       }
     });
-  }, [materials, snap.color]);
+  }, [materialMap, snap.color]);
 
+  // Update textures
   useEffect(() => {
+    const textureLoader = new THREE.TextureLoader();
     Object.entries(snap.textures).forEach(([part, textureUrl]) => {
-      if (textureUrl && materials[part]) {
-        const texture = new THREE.TextureLoader().load(textureUrl);
-        const material = materials[part] as THREE.MeshStandardMaterial;
-        material.map = texture;
-        material.needsUpdate = true;
+      if (textureUrl && materialMap[part]) {
+        textureLoader.load(textureUrl, (texture) => {
+          const material = materialMap[part] as THREE.MeshStandardMaterial;
+          material.map = texture;
+          material.needsUpdate = true;
+        });
       }
     });
-  }, [materials, snap.textures]);
+  }, [materialMap, snap.textures]);
 
-  return <primitive object={scene} scale={1} />;
+  return (
+    <group dispose={null}>
+      <primitive object={scene} scale={1} position={[0, 0, 0]} />
+    </group>
+  );
 }
+
+useGLTF.preload("/euler_tshirt_3mb.glb");

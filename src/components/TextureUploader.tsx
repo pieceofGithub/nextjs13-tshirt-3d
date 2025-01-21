@@ -1,32 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useSnapshot } from "valtio";
 import state from "../store";
 
 type TexturePart = "front" | "back" | "sleeves";
 
 const TextureUploader = () => {
+  const snap = useSnapshot(state);
   const [selectedPart, setSelectedPart] = useState<TexturePart>("front");
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result;
-        if (typeof result === "string") {
-          state.textures[selectedPart] = result; // No error because selectedPart has a known type
+  const handleFileUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        if (file.size > 5 * 1024 * 1024) {
+          alert("File size must be less than 5MB.");
+          return;
         }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const result = e.target?.result;
+          if (typeof result === "string") {
+            state.textures[selectedPart] = result;
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    },
+    [selectedPart]
+  );
 
   return (
     <div className="w-full space-y-4">
       <select
         value={selectedPart}
-        onChange={(e) => setSelectedPart(e.target.value as TexturePart)} // Cast to TexturePart
+        onChange={(e) => setSelectedPart(e.target.value as TexturePart)}
         className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
       >
         <option value="front">Front</option>
@@ -63,6 +72,18 @@ const TextureUploader = () => {
           onChange={handleFileUpload}
           className="hidden"
         />
+      </div>
+
+      <div className="w-full h-32 border border-gray-300 rounded-lg flex items-center justify-center">
+        {snap.textures[selectedPart] ? (
+          <img
+            src={snap.textures[selectedPart]}
+            alt={`${selectedPart} preview`}
+            className="object-contain max-h-full"
+          />
+        ) : (
+          <span className="text-gray-400">No texture uploaded</span>
+        )}
       </div>
     </div>
   );
